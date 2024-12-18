@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>取得台灣證交所資料</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            text-align: left;
+            cursor: pointer;
+            position: relative;
+        }
+
+        th span {
+            position: absolute;
+            right: 8px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">API 範例介紹</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="股票.html">股票</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="空氣品質AQI.html">空氣品質AQI</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="寵物走失.html">寵物走失</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="docs.html">代辦事項</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <h1>台灣證券交易所資料</h1>
+    <div>
+        <label for="stock-search">搜尋股票代號：</label>
+        <input type="text" id="stock-search" placeholder="輸入股票代號">
+        <button id="search-stock">搜尋</button>
+    </div>
+    <button id="fetch-data">取得所有資料</button>
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th data-key="Code">股票代號<span></span></th>
+                <th data-key="Name">股票名稱<span></span></th>
+                <th data-key="TradeVolume">成交股數<span></span></th>
+                <th data-key="TradeValue">成交金額<span></span></th>
+                <th data-key="OpeningPrice">開盤價<span></span></th>
+                <th data-key="HighestPrice">最高價<span></span></th>
+                <th data-key="LowestPrice">最低價<span></span></th>
+                <th data-key="ClosingPrice">收盤價<span></span></th>
+                <th data-key="Change">漲跌<span></span></th>
+                <th data-key="Transaction">成交筆數<span></span></th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be inserted here -->
+        </tbody>
+    </table>
+
+    <script>
+        let currentData = [];
+        let sortState = {}; // Track sorting state for each column
+
+        document.getElementById('fetch-data').addEventListener('click', () => {
+            const tableBody = document.querySelector('#data-table tbody');
+            tableBody.innerHTML = ''; // Clear existing data
+
+            fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP 錯誤！狀態：${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    currentData = data;
+                    renderTable(data);
+                })
+                .catch(error => {
+                    console.error('取得資料時發生錯誤：', error);
+                    alert('取得資料失敗，請稍後再試。');
+                });
+        });
+
+        document.getElementById('search-stock').addEventListener('click', () => {
+            const searchValue = document.getElementById('stock-search').value.trim();
+            const tableBody = document.querySelector('#data-table tbody');
+            tableBody.innerHTML = ''; // Clear existing data
+
+            if (!searchValue) {
+                alert('請輸入股票代號！');
+                return;
+            }
+
+            const filteredData = currentData.filter(stock => stock.Code === searchValue);
+
+            if (filteredData.length === 0) {
+                alert('找不到符合的股票代號！');
+                return;
+            }
+
+            renderTable(filteredData);
+        });
+
+        document.querySelectorAll('#data-table th').forEach(header => {
+            header.addEventListener('click', () => {
+                const key = header.getAttribute('data-key');
+                const isAscending = sortState[key] === 'asc';
+                sortState[key] = isAscending ? 'desc' : 'asc';
+
+                const sortedData = [...currentData].sort((a, b) => {
+                    const valA = parseFloat(a[key].replace(/,/g, '')) || a[key];
+                    const valB = parseFloat(b[key].replace(/,/g, '')) || b[key];
+
+                    if (typeof valA === 'number' && typeof valB === 'number') {
+                        return isAscending ? valB - valA : valA - valB;
+                    } else {
+                        return isAscending ? (valA < valB ? 1 : -1) : (valA > valB ? 1 : -1);
+                    }
+                });
+
+                renderTable(sortedData);
+                updateHeaderIcons(header, sortState[key]);
+            });
+        });
+
+        function renderTable(data) {
+            const tableBody = document.querySelector('#data-table tbody');
+            tableBody.innerHTML = '';
+
+            data.forEach(stock => {
+                const row = document.createElement('tr');
+
+                row.innerHTML = `
+                    <td>${stock.Code}</td>
+                    <td>${stock.Name}</td>
+                    <td>${stock.TradeVolume}</td>
+                    <td>${stock.TradeValue}</td>
+                    <td>${stock.OpeningPrice}</td>
+                    <td>${stock.HighestPrice}</td>
+                    <td>${stock.LowestPrice}</td>
+                    <td>${stock.ClosingPrice}</td>
+                    <td>${stock.Change}</td>
+                    <td>${stock.Transaction}</td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function updateHeaderIcons(header, sortDirection) {
+            document.querySelectorAll('#data-table th span').forEach(span => {
+                span.textContent = ''; // Clear all icons
+            });
+
+            const icon = sortDirection === 'asc' ? '▲' : '▼';
+            header.querySelector('span').textContent = icon;
+        }
+    </script>
+</body>
+
+</html>

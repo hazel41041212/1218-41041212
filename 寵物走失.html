@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>寵物遺失資料</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        /* 排版樣式 */
+        #controls {
+            margin-bottom: 20px;
+        }
+
+        /* 排序箭頭 */
+        .sorted-asc::after {
+            content: " ▲";
+        }
+
+        .sorted-desc::after {
+            content: " ▼";
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">API 範例介紹</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="股票.html">股票</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="空氣品質AQI.html">空氣品質AQI</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="寵物走失.html">寵物走失</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="docs.html">代辦事項</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <h1>近3年寵物遺失資料</h1>
+
+    <!-- 搜尋框 -->
+    <div id="controls">
+        <input type="text" id="searchInput" placeholder="搜尋外觀、特徵或名稱" oninput="filterData()">
+    </div>
+
+    <!-- 獲取資料按鈕 -->
+    <div id="controls">
+        <button id="fetchDataBtn">獲取資料</button>
+    </div>
+
+    <!-- 表格顯示資料 -->
+    <table id="petTable">
+        <thead>
+            <tr>
+                <th>寵物名稱</th>
+                <th onclick="sortTable(1)">晶片號碼 </th> <!-- 晶片號碼可排序 -->
+                <th>品種</th>
+                <th onclick="sortTable(3)">性別</th> <!-- 性別可排序 -->
+                <th>毛色</th>
+                <th>外觀</th>
+                <th>特徵</th>
+                <th onclick="sortTable(7)">遺失時間</th> <!-- 遺失時間可排序 -->
+                <th>遺失地點</th>
+                <th>飼主姓名</th>
+                <th>連絡電話</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        const apiUrl = 'https://data.moa.gov.tw/Service/OpenData/TransService.aspx?UnitId=IFJomqVzyB0i&IsTransData=1';
+        let petData = []; // 儲存所有獲取到的資料
+
+        let sortDirection = [true, true, true, true, true, true, true, true, true, true, true]; // 儲存每一欄位的排序狀態（true為升序，false為降序）
+
+        // 監聽按鈕點擊事件
+        document.getElementById('fetchDataBtn').addEventListener('click', () => {
+            // 獲取資料並顯示
+            fetch(apiUrl)
+                .then(response => response.json())  // 解析 JSON 資料
+                .then(data => {
+                    petData = data; // 儲存資料
+                    filterData(); // 篩選資料（篩選近3年的資料）
+                })
+                .catch(error => {
+                    console.error('取得資料失敗:', error);
+                });
+        });
+
+        // 顯示資料的函數
+        function displayData(data) {
+            const petTableBody = document.querySelector('#petTable tbody');
+            petTableBody.innerHTML = ''; // 清空表格內容
+            data.forEach(pet => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${pet.寵物名}</td>
+                    <td>${pet.晶片號碼}</td>
+                    <td>${pet.品種}</td>
+                    <td>${pet.性別}</td>
+                    <td>${pet.毛色}</td>
+                    <td>${pet.外觀}</td>
+                    <td>${pet.特徵}</td>
+                    <td>${pet.遺失時間}</td>
+                    <td>${pet.遺失地點}</td>
+                    <td>${pet.飼主姓名}</td>
+                    <td>${pet.連絡電話}</td>
+                `;
+                petTableBody.appendChild(row);
+            });
+        }
+
+        // 搜尋和篩選資料的過濾函數
+        function filterData() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase(); // 獲取搜尋字串
+            const threeYearsAgo = new Date();
+            threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3); // 計算3年前的日期
+
+            // 篩選出近3年內且符合搜尋字串的資料
+            const filteredData = petData.filter(pet => {
+                const petDate = new Date(pet.遺失時間);
+                const isWithin3Years = petDate >= threeYearsAgo; // 檢查是否在近3年內
+                const matchesSearchQuery = pet.寵物名.toLowerCase().includes(searchQuery) ||
+                    pet.外觀.toLowerCase().includes(searchQuery) ||
+                    pet.特徵.toLowerCase().includes(searchQuery);
+
+                return isWithin3Years && matchesSearchQuery;
+            });
+
+            displayData(filteredData); // 顯示篩選後的資料
+        }
+
+        // 排序表格的函數
+        function sortTable(columnIndex) {
+            const table = document.getElementById("petTable");
+            const rows = Array.from(table.rows).slice(1); // 獲取所有表格行（排除表頭）
+
+            const ascending = sortDirection[columnIndex];
+            sortDirection[columnIndex] = !ascending; // 切換排序方向
+
+            rows.sort((rowA, rowB) => {
+                const cellA = rowA.cells[columnIndex].innerText;
+                const cellB = rowB.cells[columnIndex].innerText;
+
+                // 根據欄位進行排序（數字或字串）
+                if (columnIndex === 1) { // 晶片號碼排序（數字比較）
+                    const numA = parseInt(cellA.replace(/[^\d]/g, '')); // 去除非數字字符，轉換為數字
+                    const numB = parseInt(cellB.replace(/[^\d]/g, '')); // 去除非數字字符，轉換為數字
+                    return ascending ? numA - numB : numB - numA;
+                } else if (columnIndex === 7) { // 遺失時間排序（日期比較）
+                    return ascending ? new Date(cellA) - new Date(cellB) : new Date(cellB) - new Date(cellA);
+                } else { // 其他欄位字串排序
+                    return ascending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+                }
+            });
+
+            rows.forEach(row => table.appendChild(row)); // 按排序後的順序重新插入行
+
+            // 清除所有排序箭頭
+            const thElements = table.querySelectorAll('th');
+            thElements.forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
+
+            // 設置排序箭頭
+            thElements[columnIndex].classList.add(ascending ? 'sorted-asc' : 'sorted-desc');
+        }
+    </script>
+</body>
+
+</html>

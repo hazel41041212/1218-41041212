@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQX Data Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            /* Remove margin */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid #ddd;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            cursor: pointer;
+        }
+
+        #searchContainer {
+            margin-top: 20px;
+        }
+
+        #searchInput {
+            padding: 8px;
+            width: 300px;
+        }
+
+        #searchBtn {
+            padding: 8px 12px;
+            margin-left: 10px;
+        }
+
+        .sort-indicator {
+            margin-left: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">API 範例介紹</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="股票.html">股票</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="空氣品質AQI.html">空氣品質AQI</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="寵物走失.html">寵物走失</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="docs.html">代辦事項</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <h1>空氣品質資料</h1>
+    <button id="fetchDataBtn">取得資料</button>
+    <div id="searchContainer">
+        <input type="text" id="searchInput" placeholder="搜尋監測站或縣市">
+        <button id="searchBtn">搜尋</button>
+    </div>
+    <div id="dataContainer">
+        <table>
+            <thead>
+                <tr>
+                    <th data-key="sitename">監測站<span class="sort-indicator" id="sort-sitename"></span></th>
+                    <th data-key="county">縣市<span class="sort-indicator" id="sort-county"></span></th>
+                    <th data-key="aqi">空氣品質指數<span class="sort-indicator" id="sort-aqi"></span></th>
+                    <th data-key="status">狀態<span class="sort-indicator" id="sort-status"></span></th>
+                    <th data-key="so2">二氧化硫 (SO₂)<span class="sort-indicator" id="sort-so2"></span></th>
+                    <th data-key="co">一氧化碳 (CO)<span class="sort-indicator" id="sort-co"></span></th>
+                    <th data-key="o3">臭氧 (O₃)<span class="sort-indicator" id="sort-o3"></span></th>
+                    <th data-key="pm10">PM10<span class="sort-indicator" id="sort-pm10"></span></th>
+                    <th data-key="pm2.5">PM2.5<span class="sort-indicator" id="sort-pm2.5"></span></th>
+                    <th data-key="publishtime">資料發布時間<span class="sort-indicator" id="sort-publishtime"></span></th>
+                </tr>
+            </thead>
+            <tbody id="dataTable">
+                <!-- Data will be appended here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let originalRecords = [];
+        let sortDirection = {}; // Track sort direction for each column
+
+        document.getElementById('fetchDataBtn').addEventListener('click', fetchData);
+        document.getElementById('searchBtn').addEventListener('click', searchRecords);
+        document.querySelectorAll('th').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.getAttribute('data-key');
+                toggleSort(key);
+            });
+        });
+
+        async function fetchData() {
+            const url = 'https://data.moenv.gov.tw/api/v2/aqx_p_432?api_key=e8dd42e6-9b8b-43f8-991e-b3dee723a52d&limit=1000&sort=ImportDate%20desc&format=JSON';
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                originalRecords = data.records;
+                displayData(originalRecords);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function displayData(records) {
+            const tableBody = document.getElementById('dataTable');
+            tableBody.innerHTML = '';
+
+            records.forEach(record => {
+                const row = document.createElement('tr');
+
+                const siteNameCell = document.createElement('td');
+                siteNameCell.textContent = record.sitename || 'N/A';
+                row.appendChild(siteNameCell);
+
+                const countyCell = document.createElement('td');
+                countyCell.textContent = record.county || 'N/A';
+                row.appendChild(countyCell);
+
+                const aqiCell = document.createElement('td');
+                aqiCell.textContent = record.aqi || 'N/A';
+                row.appendChild(aqiCell);
+
+                const statusCell = document.createElement('td');
+                statusCell.textContent = record.status || 'N/A';
+                row.appendChild(statusCell);
+
+                const so2Cell = document.createElement('td');
+                so2Cell.textContent = record.so2 || 'N/A';
+                row.appendChild(so2Cell);
+
+                const coCell = document.createElement('td');
+                coCell.textContent = record.co || 'N/A';
+                row.appendChild(coCell);
+
+                const o3Cell = document.createElement('td');
+                o3Cell.textContent = record.o3 || 'N/A';
+                row.appendChild(o3Cell);
+
+                const pm10Cell = document.createElement('td');
+                pm10Cell.textContent = record.pm10 || 'N/A';
+                row.appendChild(pm10Cell);
+
+                const pm25Cell = document.createElement('td');
+                pm25Cell.textContent = record['pm2.5'] || 'N/A';
+                row.appendChild(pm25Cell);
+
+                const publishTimeCell = document.createElement('td');
+                publishTimeCell.textContent = record.publishtime || 'N/A';
+                row.appendChild(publishTimeCell);
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function toggleSort(key) {
+            if (!sortDirection[key]) {
+                sortDirection[key] = 'asc';
+            } else {
+                sortDirection[key] = sortDirection[key] === 'asc' ? 'desc' : 'asc';
+            }
+
+            const sortedRecords = [...originalRecords].sort((a, b) => {
+                if (!a[key] || !b[key]) return 0;
+                if (sortDirection[key] === 'asc') {
+                    return a[key] > b[key] ? 1 : -1;
+                } else {
+                    return a[key] < b[key] ? 1 : -1;
+                }
+            });
+
+            displayData(sortedRecords);
+            updateSortIndicators(key);
+        }
+
+        function updateSortIndicators(activeKey) {
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.textContent = '';
+            });
+
+            const indicator = document.getElementById(`sort-${activeKey}`);
+            if (indicator) {
+                indicator.textContent = sortDirection[activeKey] === 'asc' ? '⬆' : '⬇';
+            }
+        }
+
+        function searchRecords() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filteredRecords = originalRecords.filter(record =>
+                record.sitename.toLowerCase().includes(query) ||
+                record.county.toLowerCase().includes(query)
+            );
+            displayData(filteredRecords);
+        }
+    </script>
+</body>
+
+</html>
